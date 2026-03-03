@@ -337,4 +337,4 @@ npm run test:all      # full suite
 
 ## License
 
-[Elastic License 2.0 (ELv2)](LICENSE) — free to use, modify, and distribute. You may not offer this software as a hosted/managed service.
+[Elastic License 2.0 (ELv2)](LICENSE) — free to use, modify, and share. You may not rebrand and redistribute this software as a competing plugin, product, or managed service.
