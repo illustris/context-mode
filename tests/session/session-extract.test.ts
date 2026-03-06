@@ -20,7 +20,7 @@ describe("File Events", () => {
 
     const events = extractEvents(input);
     assert.equal(events.length, 1);
-    assert.equal(events[0].type, "file");
+    assert.equal(events[0].type, "file_edit");
     assert.equal(events[0].category, "file");
     assert.equal(events[0].data, "/project/src/server.ts");
     assert.equal(events[0].priority, 1);
@@ -766,7 +766,7 @@ describe("Cross-Platform (Windows)", () => {
 
     const events = extractEvents(input);
     assert.equal(events.length, 1);
-    assert.equal(events[0].type, "file");
+    assert.equal(events[0].type, "file_edit");
     assert.ok(events[0].data.includes("server.ts"));
   });
 
@@ -794,6 +794,300 @@ describe("Cross-Platform (Windows)", () => {
     const cwdEvents = events.filter(e => e.type === "cwd");
     assert.equal(cwdEvents.length, 1);
     assert.equal(cwdEvents[0].data, "\\\\server\\share\\project");
+  });
+});
+
+// ════════════════════════════════════════════
+// NotebookEdit TRACKING
+// ════════════════════════════════════════════
+
+describe("NotebookEdit Events", () => {
+  test("extracts file_edit event from NotebookEdit tool", () => {
+    const input = {
+      tool_name: "NotebookEdit",
+      tool_input: {
+        notebook_path: "/project/analysis.ipynb",
+        new_source: "import pandas as pd",
+        cell_type: "code",
+        edit_mode: "replace",
+      },
+      tool_response: "Cell updated",
+    };
+
+    const events = extractEvents(input);
+    const fileEvents = events.filter(e => e.category === "file");
+    assert.equal(fileEvents.length, 1);
+    assert.equal(fileEvents[0].type, "file_edit");
+    assert.equal(fileEvents[0].data, "/project/analysis.ipynb");
+    assert.equal(fileEvents[0].priority, 1);
+  });
+
+  test("NotebookEdit with insert mode", () => {
+    const input = {
+      tool_name: "NotebookEdit",
+      tool_input: {
+        notebook_path: "/project/notebook.ipynb",
+        new_source: "print('hello')",
+        cell_type: "code",
+        edit_mode: "insert",
+      },
+      tool_response: "Cell inserted",
+    };
+
+    const events = extractEvents(input);
+    const fileEvents = events.filter(e => e.category === "file");
+    assert.equal(fileEvents.length, 1);
+    assert.equal(fileEvents[0].type, "file_edit");
+  });
+});
+
+// ════════════════════════════════════════════
+// AskUserQuestion TRACKING
+// ════════════════════════════════════════════
+
+describe("AskUserQuestion Events", () => {
+  test("extracts decision_question event from AskUserQuestion", () => {
+    const input = {
+      tool_name: "AskUserQuestion",
+      tool_input: {
+        questions: [
+          {
+            question: "Which database should we use?",
+            header: "Database",
+            options: [
+              { label: "PostgreSQL", description: "Relational DB" },
+              { label: "MongoDB", description: "Document DB" },
+            ],
+            multiSelect: false,
+          },
+        ],
+      },
+      tool_response: JSON.stringify({ answers: { "Which database should we use?": "PostgreSQL" } }),
+    };
+
+    const events = extractEvents(input);
+    const decisionEvents = events.filter(e => e.type === "decision_question");
+    assert.equal(decisionEvents.length, 1);
+    assert.equal(decisionEvents[0].category, "decision");
+    assert.equal(decisionEvents[0].priority, 2);
+    assert.ok(decisionEvents[0].data.includes("database"), "should include question text");
+  });
+
+  test("non-AskUserQuestion tool does not produce decision_question", () => {
+    const input = {
+      tool_name: "Read",
+      tool_input: { file_path: "/project/src/main.ts" },
+      tool_response: "file content",
+    };
+
+    const events = extractEvents(input);
+    const decisionEvents = events.filter(e => e.type === "decision_question");
+    assert.equal(decisionEvents.length, 0);
+  });
+});
+
+// ════════════════════════════════════════════
+// EnterWorktree TRACKING
+// ════════════════════════════════════════════
+
+describe("EnterWorktree Events", () => {
+  test("extracts worktree event from EnterWorktree", () => {
+    const input = {
+      tool_name: "EnterWorktree",
+      tool_input: { name: "feature-auth" },
+      tool_response: "Worktree created",
+    };
+
+    const events = extractEvents(input);
+    const wtEvents = events.filter(e => e.type === "worktree");
+    assert.equal(wtEvents.length, 1);
+    assert.equal(wtEvents[0].category, "env");
+    assert.equal(wtEvents[0].priority, 2);
+    assert.ok(wtEvents[0].data.includes("feature-auth"), "should include worktree name");
+  });
+
+  test("extracts worktree event without name", () => {
+    const input = {
+      tool_name: "EnterWorktree",
+      tool_input: {},
+      tool_response: "Worktree created",
+    };
+
+    const events = extractEvents(input);
+    const wtEvents = events.filter(e => e.type === "worktree");
+    assert.equal(wtEvents.length, 1);
+    assert.ok(wtEvents[0].data.length > 0, "should have data even without name");
+  });
+});
+
+// ════════════════════════════════════════════
+// NEW GIT PATTERNS
+// ════════════════════════════════════════════
+
+describe("New Git Patterns", () => {
+  test("extracts git add event", () => {
+    const input = {
+      tool_name: "Bash",
+      tool_input: { command: "git add src/server.ts" },
+      tool_response: "",
+    };
+
+    const events = extractEvents(input);
+    const gitEvents = events.filter(e => e.category === "git");
+    assert.equal(gitEvents.length, 1);
+    assert.ok(gitEvents[0].data.includes("add"), "should include add operation");
+  });
+
+  test("extracts git cherry-pick event", () => {
+    const input = {
+      tool_name: "Bash",
+      tool_input: { command: "git cherry-pick abc123" },
+      tool_response: "",
+    };
+
+    const events = extractEvents(input);
+    const gitEvents = events.filter(e => e.category === "git");
+    assert.equal(gitEvents.length, 1);
+    assert.ok(gitEvents[0].data.includes("cherry-pick"), "should include cherry-pick");
+  });
+
+  test("extracts git tag event", () => {
+    const input = {
+      tool_name: "Bash",
+      tool_input: { command: "git tag v1.0.0" },
+      tool_response: "",
+    };
+
+    const events = extractEvents(input);
+    const gitEvents = events.filter(e => e.category === "git");
+    assert.equal(gitEvents.length, 1);
+    assert.ok(gitEvents[0].data.includes("tag"), "should include tag");
+  });
+
+  test("extracts git fetch event", () => {
+    const input = {
+      tool_name: "Bash",
+      tool_input: { command: "git fetch origin" },
+      tool_response: "",
+    };
+
+    const events = extractEvents(input);
+    const gitEvents = events.filter(e => e.category === "git");
+    assert.equal(gitEvents.length, 1);
+    assert.ok(gitEvents[0].data.includes("fetch"), "should include fetch");
+  });
+
+  test("extracts git clone event", () => {
+    const input = {
+      tool_name: "Bash",
+      tool_input: { command: "git clone https://github.com/user/repo.git" },
+      tool_response: "",
+    };
+
+    const events = extractEvents(input);
+    const gitEvents = events.filter(e => e.category === "git");
+    assert.equal(gitEvents.length, 1);
+    assert.ok(gitEvents[0].data.includes("clone"), "should include clone");
+  });
+});
+
+// ════════════════════════════════════════════
+// NEW ENV PATTERNS
+// ════════════════════════════════════════════
+
+describe("New Env Patterns", () => {
+  test("extracts env event from cargo install", () => {
+    const input = {
+      tool_name: "Bash",
+      tool_input: { command: "cargo install serde" },
+      tool_response: "",
+    };
+
+    const events = extractEvents(input);
+    const envEvents = events.filter(e => e.category === "env");
+    assert.ok(envEvents.length >= 1, "should extract env event for cargo install");
+  });
+
+  test("extracts env event from go install", () => {
+    const input = {
+      tool_name: "Bash",
+      tool_input: { command: "go install golang.org/x/tools/gopls@latest" },
+      tool_response: "",
+    };
+
+    const events = extractEvents(input);
+    const envEvents = events.filter(e => e.category === "env");
+    assert.ok(envEvents.length >= 1, "should extract env event for go install");
+  });
+
+  test("extracts env event from rustup", () => {
+    const input = {
+      tool_name: "Bash",
+      tool_input: { command: "rustup default stable" },
+      tool_response: "",
+    };
+
+    const events = extractEvents(input);
+    const envEvents = events.filter(e => e.category === "env");
+    assert.ok(envEvents.length >= 1, "should extract env event for rustup");
+  });
+
+  test("extracts env event from volta", () => {
+    const input = {
+      tool_name: "Bash",
+      tool_input: { command: "volta install node@18" },
+      tool_response: "",
+    };
+
+    const events = extractEvents(input);
+    const envEvents = events.filter(e => e.category === "env");
+    assert.ok(envEvents.length >= 1, "should extract env event for volta");
+  });
+
+  test("extracts env event from deno install", () => {
+    const input = {
+      tool_name: "Bash",
+      tool_input: { command: "deno install --allow-net server.ts" },
+      tool_response: "",
+    };
+
+    const events = extractEvents(input);
+    const envEvents = events.filter(e => e.category === "env");
+    assert.ok(envEvents.length >= 1, "should extract env event for deno install");
+  });
+});
+
+// ════════════════════════════════════════════
+// ENV SECRET SANITIZATION
+// ════════════════════════════════════════════
+
+describe("Env Secret Sanitization", () => {
+  test("sanitizes export commands to prevent secret leakage", () => {
+    const input = {
+      tool_name: "Bash",
+      tool_input: { command: "export API_KEY=sk-secret-12345" },
+      tool_response: "",
+    };
+
+    const events = extractEvents(input);
+    const envEvents = events.filter(e => e.category === "env");
+    assert.ok(envEvents.length >= 1, "should extract env event");
+    assert.ok(!envEvents[0].data.includes("sk-secret"), "should NOT contain the secret value");
+    assert.ok(envEvents[0].data.includes("API_KEY"), "should contain the key name");
+    assert.ok(envEvents[0].data.includes("***"), "should contain masked value");
+  });
+
+  test("does not sanitize non-export env commands", () => {
+    const input = {
+      tool_name: "Bash",
+      tool_input: { command: "npm install express" },
+      tool_response: "",
+    };
+
+    const events = extractEvents(input);
+    const envEvents = events.filter(e => e.category === "env");
+    assert.ok(envEvents.length >= 1, "should extract env event");
+    assert.ok(envEvents[0].data.includes("npm install express"), "should contain full command");
   });
 });
 

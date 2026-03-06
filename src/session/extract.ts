@@ -108,9 +108,20 @@ function extractFileAndRule(input: HookInput): SessionEvent[] {
   if (tool_name === "Edit") {
     const filePath = String(tool_input["file_path"] ?? "");
     events.push({
-      type: "file",
+      type: "file_edit",
       category: "file",
       data: truncate(filePath),
+      priority: 1,
+    });
+    return events;
+  }
+
+  if (tool_name === "NotebookEdit") {
+    const notebookPath = String(tool_input["notebook_path"] ?? "");
+    events.push({
+      type: "file_edit",
+      category: "file",
+      data: truncate(notebookPath),
       priority: 1,
     });
     return events;
@@ -219,6 +230,12 @@ const GIT_PATTERNS: Array<{ pattern: RegExp; operation: string }> = [
   { pattern: /\bgit\s+status\b/, operation: "status" },
   { pattern: /\bgit\s+branch\b/, operation: "branch" },
   { pattern: /\bgit\s+reset\b/, operation: "reset" },
+  { pattern: /\bgit\s+add\b/, operation: "add" },
+  { pattern: /\bgit\s+cherry-pick\b/, operation: "cherry-pick" },
+  { pattern: /\bgit\s+tag\b/, operation: "tag" },
+  { pattern: /\bgit\s+fetch\b/, operation: "fetch" },
+  { pattern: /\bgit\s+clone\b/, operation: "clone" },
+  { pattern: /\bgit\s+worktree\b/, operation: "worktree" },
 ];
 
 function extractGit(input: HookInput): SessionEvent[] {
@@ -351,6 +368,12 @@ const ENV_PATTERNS: RegExp[] = [
   /\bbun\s+install\b/,
   /\byarn\s+(add|install)\b/,
   /\bpnpm\s+(add|install)\b/,
+  /\bcargo\s+(install|add)\b/,
+  /\bgo\s+(install|get)\b/,
+  /\brustup\b/,
+  /\basdf\b/,
+  /\bvolta\b/,
+  /\bdeno\s+install\b/,
 ];
 
 function extractEnv(input: HookInput): SessionEvent[] {
@@ -360,10 +383,13 @@ function extractEnv(input: HookInput): SessionEvent[] {
   const isEnvCmd = ENV_PATTERNS.some(p => p.test(cmd));
   if (!isEnvCmd) return [];
 
+  // Sanitize export commands to prevent secret leakage
+  const sanitized = cmd.replace(/\bexport\s+(\w+)=\S*/g, "export $1=***");
+
   return [{
     type: "env",
     category: "env",
-    data: truncate(cmd),
+    data: truncate(sanitized),
     priority: 2,
   }];
 }
@@ -431,6 +457,47 @@ function extractMcp(input: HookInput): SessionEvent[] {
   }];
 }
 
+/**
+ * Category 6 (tool-based): decision
+ * AskUserQuestion tool — tracks questions posed to user and their answers.
+ */
+function extractDecision(input: HookInput): SessionEvent[] {
+  if (input.tool_name !== "AskUserQuestion") return [];
+
+  const questions = input.tool_input["questions"];
+  const questionText = Array.isArray(questions) && questions.length > 0
+    ? String((questions[0] as Record<string, unknown>)["question"] ?? "")
+    : "";
+
+  const answer = truncate(String(input.tool_response ?? ""), 150);
+  const summary = questionText
+    ? `Q: ${truncate(questionText, 120)} → A: ${answer}`
+    : `answer: ${answer}`;
+
+  return [{
+    type: "decision_question",
+    category: "decision",
+    data: truncate(summary),
+    priority: 2,
+  }];
+}
+
+/**
+ * Category 8: env (worktree)
+ * EnterWorktree tool — tracks worktree creation.
+ */
+function extractWorktree(input: HookInput): SessionEvent[] {
+  if (input.tool_name !== "EnterWorktree") return [];
+
+  const name = String(input.tool_input["name"] ?? "unnamed");
+  return [{
+    type: "worktree",
+    category: "env",
+    data: truncate(`entered worktree: ${name}`),
+    priority: 2,
+  }];
+}
+
 // ── User-message extractors ────────────────────────────────────────────────
 
 /**
@@ -446,7 +513,7 @@ const DECISION_PATTERNS: RegExp[] = [
   /\b(hayır|hayir|evet|böyle|boyle|degil|değil|yerine|kullan)\b/i,
 ];
 
-function extractDecision(message: string): SessionEvent[] {
+function extractUserDecision(message: string): SessionEvent[] {
   const isDecision = DECISION_PATTERNS.some(p => p.test(message));
   if (!isDecision) return [];
 
@@ -548,6 +615,8 @@ export function extractEvents(input: HookInput): SessionEvent[] {
     events.push(...extractSkill(input));
     events.push(...extractSubagent(input));
     events.push(...extractMcp(input));
+    events.push(...extractDecision(input));
+    events.push(...extractWorktree(input));
 
     return events;
   } catch {
@@ -566,7 +635,7 @@ export function extractUserEvents(message: string): SessionEvent[] {
   try {
     const events: SessionEvent[] = [];
 
-    events.push(...extractDecision(message));
+    events.push(...extractUserDecision(message));
     events.push(...extractRole(message));
     events.push(...extractIntent(message));
     events.push(...extractData(message));

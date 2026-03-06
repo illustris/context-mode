@@ -44,7 +44,7 @@ describe("Slice 1: Empty Events", () => {
 describe("Slice 2: Single File Event", () => {
   test("buildResumeSnapshot with single file event includes active_files", () => {
     const events: StoredEvent[] = [
-      makeEvent({ type: "file", category: "file", data: "src/server.ts", priority: 1 }),
+      makeEvent({ type: "file_edit", category: "file", data: "src/server.ts", priority: 1 }),
     ];
     const xml = buildResumeSnapshot(events);
     assert.ok(xml.includes("<active_files>"), "should include <active_files>");
@@ -60,9 +60,9 @@ describe("Slice 2: Single File Event", () => {
 describe("Slice 3: File Deduplication", () => {
   test("renderActiveFiles deduplicates files by path and counts ops", () => {
     const events: StoredEvent[] = [
-      makeEvent({ type: "file", category: "file", data: "src/server.ts", priority: 1 }),
-      makeEvent({ type: "file", category: "file", data: "src/server.ts", priority: 1 }),
-      makeEvent({ type: "file", category: "file", data: "src/server.ts", priority: 1 }),
+      makeEvent({ type: "file_edit", category: "file", data: "src/server.ts", priority: 1 }),
+      makeEvent({ type: "file_edit", category: "file", data: "src/server.ts", priority: 1 }),
+      makeEvent({ type: "file_edit", category: "file", data: "src/server.ts", priority: 1 }),
       makeEvent({ type: "file_read", category: "file", data: "src/server.ts", priority: 1 }),
       makeEvent({ type: "file_read", category: "file", data: "src/server.ts", priority: 1 }),
     ];
@@ -79,7 +79,7 @@ describe("Slice 3: File Deduplication", () => {
 
   test("renderActiveFiles tracks last operation correctly", () => {
     const events: StoredEvent[] = [
-      makeEvent({ type: "file", category: "file", data: "src/store.ts", priority: 1 }),
+      makeEvent({ type: "file_edit", category: "file", data: "src/store.ts", priority: 1 }),
       makeEvent({ type: "file_read", category: "file", data: "src/store.ts", priority: 1 }),
     ];
     const xml = renderActiveFiles(events);
@@ -233,18 +233,18 @@ describe("Slice 8: Environment", () => {
 });
 
 // ════════════════════════════════════════════
-// SLICE 9: Error events -> <errors_resolved>
+// SLICE 9: Error events -> <errors_encountered>
 // ════════════════════════════════════════════
 
 describe("Slice 9: Errors", () => {
-  test("buildResumeSnapshot with error events includes errors_resolved", () => {
+  test("buildResumeSnapshot with error events includes errors_encountered", () => {
     const events: StoredEvent[] = [
       makeEvent({ type: "error_tool", category: "error", data: "Push rejected: non-fast-forward", priority: 2 }),
     ];
     const xml = buildResumeSnapshot(events);
-    assert.ok(xml.includes("<errors_resolved>"), "should include <errors_resolved>");
+    assert.ok(xml.includes("<errors_encountered>"), "should include <errors_encountered>");
     assert.ok(xml.includes("Push rejected"), "should include error data");
-    assert.ok(xml.includes("</errors_resolved>"), "should close errors_resolved");
+    assert.ok(xml.includes("</errors_encountered>"), "should close errors_encountered");
   });
 
   test("renderErrors renders multiple errors", () => {
@@ -291,7 +291,7 @@ describe("Slice 10: Intent", () => {
 describe("Slice 11: XML Escaping", () => {
   test("escapes XML special characters in data fields", () => {
     const events: StoredEvent[] = [
-      makeEvent({ type: "file", category: "file", data: 'src/<Main & "App">.tsx', priority: 1 }),
+      makeEvent({ type: "file_edit", category: "file", data: 'src/<Main & "App">.tsx', priority: 1 }),
     ];
     const xml = buildResumeSnapshot(events);
     // Should not contain raw < > & " in the data portion
@@ -434,7 +434,7 @@ describe("Slice 13: Budget Trimming", () => {
 
   test("budget trimming preserves P1 sections over P2 when budget is very tight", () => {
     const events: StoredEvent[] = [
-      makeEvent({ type: "file", category: "file", data: "src/a.ts", priority: 1 }),
+      makeEvent({ type: "file_edit", category: "file", data: "src/a.ts", priority: 1 }),
       makeEvent({ type: "error_tool", category: "error", data: "Some error message that takes space", priority: 2 }),
       makeEvent({ type: "intent", category: "intent", data: "implement", priority: 4 }),
     ];
@@ -479,8 +479,8 @@ describe("Slice 14: XML Structure", () => {
 
   test("buildResumeSnapshot with events_captured matches input length", () => {
     const events: StoredEvent[] = [
-      makeEvent({ type: "file", category: "file", data: "a.ts", priority: 1 }),
-      makeEvent({ type: "file", category: "file", data: "b.ts", priority: 1 }),
+      makeEvent({ type: "file_edit", category: "file", data: "a.ts", priority: 1 }),
+      makeEvent({ type: "file_edit", category: "file", data: "b.ts", priority: 1 }),
       makeEvent({ type: "cwd", category: "cwd", data: "/project", priority: 2 }),
     ];
     const xml = buildResumeSnapshot(events);
@@ -511,7 +511,7 @@ describe("Edge Cases", () => {
 
   test("full integration: all event types combined", () => {
     const events: StoredEvent[] = [
-      makeEvent({ type: "file", category: "file", data: "src/server.ts", priority: 1 }),
+      makeEvent({ type: "file_edit", category: "file", data: "src/server.ts", priority: 1 }),
       makeEvent({ type: "file_read", category: "file", data: "src/store.ts", priority: 1 }),
       makeEvent({ type: "task", category: "task", data: JSON.stringify({ subject: "Implement session continuity" }), priority: 1 }),
       makeEvent({ type: "rule", category: "rule", data: "CLAUDE.md: Never set Claude as git author", priority: 1 }),
@@ -536,7 +536,7 @@ describe("Edge Cases", () => {
     assert.ok(xml.includes("<rules>"), "has rules");
     assert.ok(xml.includes("<decisions>"), "has decisions");
     assert.ok(xml.includes("<environment>"), "has environment");
-    assert.ok(xml.includes("<errors_resolved>"), "has errors_resolved");
+    assert.ok(xml.includes("<errors_encountered>"), "has errors_encountered");
     assert.ok(xml.includes("<intent"), "has intent");
 
     // Verify byte budget

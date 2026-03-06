@@ -63,7 +63,8 @@ export function renderActiveFiles(fileEvents: StoredEvent[]): string {
     let op: string;
     if (ev.type === "file_write") op = "write";
     else if (ev.type === "file_read") op = "read";
-    else op = "edit"; // type === "file" (from Edit tool)
+    else if (ev.type === "file_edit") op = "edit";
+    else op = ev.type;
 
     entry.ops.set(op, (entry.ops.get(op) ?? 0) + 1);
     entry.last = op;
@@ -216,18 +217,18 @@ export function renderEnvironment(
 }
 
 /**
- * Render <errors_resolved> from error events.
+ * Render <errors_encountered> from error events.
  */
 export function renderErrors(errorEvents: StoredEvent[]): string {
   if (errorEvents.length === 0) return "";
 
-  const lines: string[] = ["  <errors_resolved>"];
+  const lines: string[] = ["  <errors_encountered>"];
 
   for (const ev of errorEvents) {
     lines.push(`    - ${escapeXML(truncateString(ev.data, 150))}`);
   }
 
-  lines.push("  </errors_resolved>");
+  lines.push("  </errors_encountered>");
   return lines.join("\n");
 }
 
@@ -306,10 +307,7 @@ export function buildResumeSnapshot(
   const errorEvents: StoredEvent[] = [];
   const envEvents: StoredEvent[] = [];
   const gitEvents: StoredEvent[] = [];
-  const skillEvents: StoredEvent[] = [];
   const subagentEvents: StoredEvent[] = [];
-  const roleEvents: StoredEvent[] = [];
-  const dataEvents: StoredEvent[] = [];
   const intentEvents: StoredEvent[] = [];
   const mcpEvents: StoredEvent[] = [];
   const planEvents: StoredEvent[] = [];
@@ -324,10 +322,7 @@ export function buildResumeSnapshot(
       case "error": errorEvents.push(ev); break;
       case "env": envEvents.push(ev); break;
       case "git": gitEvents.push(ev); break;
-      case "skill": skillEvents.push(ev); break;
       case "subagent": subagentEvents.push(ev); break;
-      case "role": roleEvents.push(ev); break;
-      case "data": dataEvents.push(ev); break;
       case "intent": intentEvents.push(ev); break;
       case "mcp": mcpEvents.push(ev); break;
       case "plan": planEvents.push(ev); break;
@@ -345,7 +340,7 @@ export function buildResumeSnapshot(
   const rules = renderRules(ruleEvents);
   if (rules) p1Sections.push(rules);
 
-  // P2 sections (35% budget): decisions, environment, errors_resolved, completed subagents
+  // P2 sections (35% budget): decisions, environment, errors_encountered, completed subagents
   const p2Sections: string[] = [];
   const decisions = renderDecisions(decisionEvents);
   if (decisions) p2Sections.push(decisions);
