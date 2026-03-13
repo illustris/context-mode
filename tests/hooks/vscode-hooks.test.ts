@@ -56,9 +56,12 @@ describe("VS Code Copilot hooks", () => {
   });
 
   // Clean file-based guidance throttle markers between tests.
-  // Subprocess hooks share process.ppid (vitest runner PID), so markers persist.
+  // Subprocess hooks use process.ppid (= this test's pid) for marker dir.
+  // VITEST_WORKER_ID is inherited by subprocesses, matching routing.mjs logic.
   beforeEach(() => {
-    const guidanceDir = resolve(tmpdir(), `context-mode-guidance-${process.pid}`);
+    const wid = process.env.VITEST_WORKER_ID;
+    const suffix = wid ? `${process.pid}-w${wid}` : String(process.pid);
+    const guidanceDir = resolve(tmpdir(), `context-mode-guidance-${suffix}`);
     try { rmSync(guidanceDir, { recursive: true, force: true }); } catch { /* best effort */ }
   });
 
