@@ -93,7 +93,7 @@ export function buildHookCommand(hookType: HookType, pluginRoot?: string): strin
     throw new Error(`No script defined for hook type: ${hookType}`);
   }
   if (pluginRoot) {
-    return `node "${pluginRoot}/hooks/${scriptName}"`;
+    return `${process.execPath} "${pluginRoot}/hooks/${scriptName}"`;
   }
   return `context-mode hook vscode-copilot ${hookType.toLowerCase()}`;
 }

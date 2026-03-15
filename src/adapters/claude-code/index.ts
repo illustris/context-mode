@@ -221,7 +221,8 @@ export class ClaudeCodeAdapter implements HookAdapter {
   }
 
   generateHookConfig(pluginRoot: string): HookRegistration {
-    const preToolUseCommand = `node ${pluginRoot}/hooks/pretooluse.mjs`;
+    const node = process.execPath;
+    const preToolUseCommand = `${node} ${pluginRoot}/hooks/pretooluse.mjs`;
     const preToolUseMatchers = [
       "Bash",
       "WebFetch",
@@ -244,7 +245,7 @@ export class ClaudeCodeAdapter implements HookAdapter {
           hooks: [
             {
               type: "command",
-              command: `node ${pluginRoot}/hooks/posttooluse.mjs`,
+              command: `${node} ${pluginRoot}/hooks/posttooluse.mjs`,
             },
           ],
         },
@@ -255,7 +256,7 @@ export class ClaudeCodeAdapter implements HookAdapter {
           hooks: [
             {
               type: "command",
-              command: `node ${pluginRoot}/hooks/precompact.mjs`,
+              command: `${node} ${pluginRoot}/hooks/precompact.mjs`,
             },
           ],
         },
@@ -266,7 +267,7 @@ export class ClaudeCodeAdapter implements HookAdapter {
           hooks: [
             {
               type: "command",
-              command: `node ${pluginRoot}/hooks/userpromptsubmit.mjs`,
+              command: `${node} ${pluginRoot}/hooks/userpromptsubmit.mjs`,
             },
           ],
         },
@@ -277,7 +278,7 @@ export class ClaudeCodeAdapter implements HookAdapter {
           hooks: [
             {
               type: "command",
-              command: `node ${pluginRoot}/hooks/sessionstart.mjs`,
+              command: `${node} ${pluginRoot}/hooks/sessionstart.mjs`,
             },
           ],
         },

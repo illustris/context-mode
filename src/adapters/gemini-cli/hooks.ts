@@ -83,7 +83,7 @@ export function isContextModeHook(
 export function buildHookCommand(hookType: HookType, pluginRoot?: string): string {
   const scriptName = HOOK_SCRIPTS[hookType];
   if (pluginRoot && scriptName) {
-    return `node "${pluginRoot}/hooks/${scriptName}"`;
+    return `${process.execPath} "${pluginRoot}/hooks/${scriptName}"`;
   }
   return `context-mode hook gemini-cli ${hookType.toLowerCase()}`;
 }

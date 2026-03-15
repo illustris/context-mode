@@ -110,7 +110,7 @@ export function isContextModeHook(
 export function buildHookCommand(hookType: HookType, pluginRoot?: string): string {
   if (pluginRoot) {
     const scriptName = HOOK_SCRIPTS[hookType];
-    return `node "${pluginRoot}/hooks/${scriptName}"`;
+    return `${process.execPath} "${pluginRoot}/hooks/${scriptName}"`;
   }
   return `context-mode hook claude-code ${hookType.toLowerCase()}`;
 }

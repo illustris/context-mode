@@ -588,7 +588,7 @@ async function upgrade() {
     const cliBundlePath = resolve(pluginRoot, "cli.bundle.mjs");
     const cliBuildPath = resolve(pluginRoot, "build", "cli.js");
     const cliPath = existsSync(cliBundlePath) ? cliBundlePath : cliBuildPath;
-    execSync(`node "${cliPath}" doctor`, {
+    execSync(`${process.execPath} "${cliPath}" doctor`, {
       stdio: "inherit",
       timeout: 30000,
       cwd: pluginRoot,

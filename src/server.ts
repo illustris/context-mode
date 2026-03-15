@@ -1633,7 +1633,7 @@ server.registerTool(
   },
   async () => {
     const pluginRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-    const cmd = `node "${pluginRoot}/build/cli.js" doctor`;
+    const cmd = `${process.execPath} "${pluginRoot}/build/cli.js" doctor`;
 
     const text = [
       "## ctx-doctor",
@@ -1678,7 +1678,7 @@ server.registerTool(
   },
   async () => {
     const pluginRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-    const cmd = `node "${pluginRoot}/build/cli.js" upgrade`;
+    const cmd = `${process.execPath} "${pluginRoot}/build/cli.js" upgrade`;
 
     const text = [
       "## ctx-upgrade",
